@@ -171,17 +171,20 @@ void generateSphere(std::vector<float>& vertices, std::vector<unsigned int>& ind
     float sectorStep = 2 * M_PI / sectors;
     float stackStep = M_PI / stacks;
     
+    // Генерируем вершины. На каждой параллели будет (sectors + 1) вершина для шва.
     for (int i = 0; i <= stacks; ++i) {
         float stackAngle = M_PI / 2 - i * stackStep;
         z = -radius * sinf(stackAngle);
         float xy = radius * cosf(stackAngle);
+        t = 1.0f - (float)i / stacks;
         
         for (int j = 0; j <= sectors; ++j) {
             float sectorAngle = j * sectorStep;
             x = xy * cosf(sectorAngle);
             y = xy * sinf(sectorAngle);
-            s = (float)j / sectors;
-            t = 1.0f - (float)i / stacks;
+            // Текстурная координата s с учётом сдвига на 0.5 (поворот карты на 180°)
+            // Для j = sectors координата s будет равна 1.0 + 0.5 = 1.5, что с GL_REPEAT эквивалентно 0.5
+            s = (float)j / sectors + 0.5f;
             
             vertices.push_back(x);
             vertices.push_back(y);
@@ -190,25 +193,29 @@ void generateSphere(std::vector<float>& vertices, std::vector<unsigned int>& ind
             vertices.push_back(t);
         }
     }
+    
+    // Индексы для треугольников.
+    // Нам нужно соединить вершины так, чтобы на шве (j = sectors) использовались отдельные вершины,
+    // что уже учтено, поскольку мы создали отдельные вершины для j = sectors.
     for (int i = 0; i < stacks; ++i) {
         int k1 = i * (sectors + 1);
         int k2 = (i + 1) * (sectors + 1);
-        for (int j = 0; j < sectors; ++j, ++k1, ++k2) {
+        for (int j = 0; j < sectors; ++j) {
+            // Первый треугольник (верхний левый и нижний правый)
             if (i != 0) {
-                indices.push_back(k1);
-                indices.push_back(k2);
-                indices.push_back(k1 + 1);
+                indices.push_back(k1 + j);
+                indices.push_back(k2 + j);
+                indices.push_back(k1 + j + 1);
             }
+            // Второй треугольник
             if (i != (stacks - 1)) {
-                indices.push_back(k1 + 1);
-                indices.push_back(k2);
-                indices.push_back(k2 + 1);
+                indices.push_back(k1 + j + 1);
+                indices.push_back(k2 + j);
+                indices.push_back(k2 + j + 1);
             }
         }
     }
-}
-
-void generateSimpleSphere(std::vector<float>& vertices, std::vector<unsigned int>& indices,
+}void generateSimpleSphere(std::vector<float>& vertices, std::vector<unsigned int>& indices,
                           float radius, int sectors, int stacks) {
     float x, y, z;
     float sectorStep = 2 * M_PI / sectors;
