@@ -3,7 +3,7 @@
 all: earth
 
 clean:
-	rm elems.txt earth elements *.csv *.o
+	rm -f elems.txt earth elements *.csv *.o
 
 elements: elements.cpp
 	g++ elements.cpp -o $@
@@ -11,8 +11,11 @@ elements: elements.cpp
 elems.txt: elements
 	./elements
 
-glad.o: glad.c
+glad.o: glad.c 
 	gcc -c glad.c -I./include -o glad.o
 
-earth: earth_render.cpp glad.o elems.txt
-	g++ earth_render.cpp glad.o -I./include -I./stb_headers -o earth -lglfw -lGL
+earth_render.o: earth_render.cpp 
+	g++ -c earth_render.cpp -I./include -I./stb_headers -o earth_render.o
+
+earth: earth_render.o glad.o elems.txt 
+	g++ earth_render.o glad.o -o earth -lglfw -lGL
