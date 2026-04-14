@@ -81,14 +81,14 @@ inline double angularDistance(double lat1, double lon1, double lat2, double lon2
 
 int main(int argc, char* argv[]) {
     if (argc < 4 || argc > 5) {
-        std::cerr << "Usage: " << argv[0] << " <input.jpg> <output_base.jpg> <coords.txt> [step=" << DEFAULT_STEP << "]\n";
+        std::cerr << "Usage: " << argv[0] << " <input.jpg> <output.jpg> <coords.txt> [step=" << DEFAULT_STEP << "]\n";
         std::cerr << "  step : take every step-th point (default " << DEFAULT_STEP << ")\n";
-        std::cerr << "Will generate output_base_1.jpg, output_base_2.jpg, ...\n";
+        std::cerr << "Output: a single image with the full trajectory.\n";
         return 1;
     }
 
     const char* inputFile  = argv[1];
-    std::string outputBase = argv[2];
+    const char* outputFile = argv[2];
     const char* coordsFile = argv[3];
     int step = DEFAULT_STEP;
     if (argc == 5) {
@@ -154,43 +154,33 @@ int main(int argc, char* argv[]) {
         py[i] = latToY(dx[i], height);
     }
 
-    // Генерация изображений для каждого k от 1 до M
-    for (int k = 1; k <= M; ++k) {
-        unsigned char* frame = copyImage(original, width, height, 3);
+    // Создаём финальное изображение как копию исходного
+    unsigned char* frame = copyImage(original, width, height, 3);
 
-        if (k == 1) {
-            drawPoint(frame, width, height, px[0], py[0], 255, 0, 0);
-        } else {
-            for (int i = 0; i < k - 1; ++i) {
-                if (angularDistance(dx[i], dy[i], dx[i+1], dy[i+1]) > 100.0) {
-                    continue;
-                }
-                drawThickLine(frame, width, height, px[i], py[i], px[i+1], py[i+1], 255, 0, 0);
-            }
+    // Рисуем все соединительные линии (если расстояние меньше 100°)
+    for (int i = 0; i < M - 1; ++i) {
+        if (angularDistance(dx[i], dy[i], dx[i+1], dy[i+1]) > 100.0) {
+            continue;
         }
-
-        std::ostringstream outName;
-        std::string base = outputBase;
-        size_t dotPos = base.rfind('.');
-        if (dotPos != std::string::npos && base.substr(dotPos) == ".jpg") {
-            outName << base.substr(0, dotPos) << "_" << k << ".jpg";
-        } else {
-            outName << base << "_" << k << ".jpg";
-        }
-        std::string outFile = outName.str();
-
-        if (!stbi_write_jpg(outFile.c_str(), width, height, 3, frame, 90)) {
-            std::cerr << "Error: cannot write image " << outFile << "\n";
-            delete[] frame;
-            stbi_image_free(original);
-            return 1;
-        }
-
-        std::cout << "Saved " << outFile << " (" << k << " point(s)/segment(s))\n";
-        delete[] frame;
+        drawThickLine(frame, width, height, px[i], py[i], px[i+1], py[i+1], 255, 0, 0);
     }
 
+    // Рисуем все точки (поверх линий)
+    for (int i = 0; i < M; ++i) {
+        drawPoint(frame, width, height, px[i], py[i], 255, 0, 0);
+    }
+
+    // Сохраняем результат
+    if (!stbi_write_jpg(outputFile, width, height, 3, frame, 90)) {
+        std::cerr << "Error: cannot write image " << outputFile << "\n";
+        delete[] frame;
+        stbi_image_free(original);
+        return 1;
+    }
+
+    std::cout << "Saved final image to " << outputFile << " with " << M << " points.\n";
+
+    delete[] frame;
     stbi_image_free(original);
-    std::cout << "All done. Generated " << M << " images.\n";
     return 0;
 }
