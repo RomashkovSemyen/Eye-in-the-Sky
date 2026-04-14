@@ -1,3 +1,4 @@
 *.exe
 elems.txt
 init.txt
+*.csv
