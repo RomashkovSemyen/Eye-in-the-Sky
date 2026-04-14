@@ -426,7 +426,14 @@ struct Satellite {
                   << " (period = " << orbitPeriod << " s)" << std::endl;
     }
 
-    void recordPosition(double currentTime) {
+    void stopRecording() {
+        if (recording) {
+            recording = false;
+            std::cout << "Stopped recording satellite " << id << " orbit. File: " << recordFilename << std::endl;
+        }
+    }
+
+        void recordPosition(double currentTime) {
         if (!recording || destroyed) return;
         if (currentTime - lastRecordTime < recordInterval) return;
 
@@ -437,12 +444,6 @@ struct Satellite {
         file.close();
 
         lastRecordTime = currentTime;
-
-        if (currentTime - recordStartTime >= orbitPeriod - recordInterval*0.5) {
-            recording = false;
-            std::cout << "Satellite " << id << " orbit recording finished (one period). File: "
-                      << recordFilename << std::endl;
-        }
     }
 };
 
