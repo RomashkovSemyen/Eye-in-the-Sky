@@ -29,8 +29,8 @@ const unsigned int SCR_HEIGHT = 720;
 bool firstMouse = true;
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
-float yaw = -90.0f;
-float pitch = 0.0f;
+float yaw = -90.0f;        // угол в плоскости XY (аналог долготы)
+float pitch = 0.0f;        // угол возвышения над плоскостью XY
 float radius = 5.0f;
 float camX, camY, camZ;
 float mouseSensitivity = 0.01f;
@@ -171,7 +171,6 @@ void generateSphere(std::vector<float>& vertices, std::vector<unsigned int>& ind
     float sectorStep = 2 * M_PI / sectors;
     float stackStep = M_PI / stacks;
     
-    // Генерируем вершины. На каждой параллели будет (sectors + 1) вершина для шва.
     for (int i = 0; i <= stacks; ++i) {
         float stackAngle = M_PI / 2 - i * stackStep;
         z = -radius * sinf(stackAngle);
@@ -182,9 +181,7 @@ void generateSphere(std::vector<float>& vertices, std::vector<unsigned int>& ind
             float sectorAngle = j * sectorStep;
             x = xy * cosf(sectorAngle);
             y = xy * sinf(sectorAngle);
-            // Текстурная координата s с учётом сдвига на 0.5 (поворот карты на 180°)
-            // Для j = sectors координата s будет равна 1.0 + 0.5 = 1.5, что с GL_REPEAT эквивалентно 0.5
-            s = (float)j / sectors + 0.5f;
+            s = (float)j / sectors + 0.5f; // сдвиг на 180 градусов
             
             vertices.push_back(x);
             vertices.push_back(y);
@@ -194,20 +191,15 @@ void generateSphere(std::vector<float>& vertices, std::vector<unsigned int>& ind
         }
     }
     
-    // Индексы для треугольников.
-    // Нам нужно соединить вершины так, чтобы на шве (j = sectors) использовались отдельные вершины,
-    // что уже учтено, поскольку мы создали отдельные вершины для j = sectors.
     for (int i = 0; i < stacks; ++i) {
         int k1 = i * (sectors + 1);
         int k2 = (i + 1) * (sectors + 1);
         for (int j = 0; j < sectors; ++j) {
-            // Первый треугольник (верхний левый и нижний правый)
             if (i != 0) {
                 indices.push_back(k1 + j);
                 indices.push_back(k2 + j);
                 indices.push_back(k1 + j + 1);
             }
-            // Второй треугольник
             if (i != (stacks - 1)) {
                 indices.push_back(k1 + j + 1);
                 indices.push_back(k2 + j);
@@ -215,7 +207,9 @@ void generateSphere(std::vector<float>& vertices, std::vector<unsigned int>& ind
             }
         }
     }
-}void generateSimpleSphere(std::vector<float>& vertices, std::vector<unsigned int>& indices,
+}
+
+void generateSimpleSphere(std::vector<float>& vertices, std::vector<unsigned int>& indices,
                           float radius, int sectors, int stacks) {
     float x, y, z;
     float sectorStep = 2 * M_PI / sectors;
@@ -302,17 +296,16 @@ void generateArrows(std::vector<float>& vertices) {
 struct Satellite {
     int id;
     // Кеплеровы элементы (из elems.txt)
-    double a_km = 0.0;       // большая полуось, км
+    double a_km = 0.0;
     double e = 0.0;
-    double i_rad = 0.0;      // наклонение, рад
-    double W_rad = 0.0;      // долгота восходящего узла, рад
-    double w_rad = 0.0;      // аргумент перицентра, рад
-    double meanMotion = 0.0; // среднее движение, рад/с
-    double T0 = 0.0;         // время прохождения перицентра (с)
+    double i_rad = 0.0;
+    double W_rad = 0.0;
+    double w_rad = 0.0;
+    double meanMotion = 0.0;
+    double T0 = 0.0;
     
-    std::string statusMsg;   // сообщение из elems.txt
+    std::string statusMsg;
     
-    // Визуализация
     std::vector<float> orbitVertices;
     unsigned int orbitVAO = 0, orbitVBO = 0;
     int orbitVertexCount = 0;
@@ -321,21 +314,19 @@ struct Satellite {
     int satIndexCount = 0;
     
     bool orbitVisible = true;
-    bool destroyed = false;  // уничтожен (столкновение или изначально по статусу)
+    bool destroyed = false;
     glm::vec3 color;
     
-    glm::dvec3 position_km;  // текущее положение, км
-    glm::dvec3 velocity_km;  // текущая скорость, км/с
+    glm::dvec3 position_km;
+    glm::dvec3 velocity_km;
 
-    // Запись траектории в CSV
     bool recording = false;
-    double recordInterval = 0.1;      // секунд симуляционного времени
+    double recordInterval = 0.1;
     double lastRecordTime = -1.0;
     double orbitPeriod = 0.0;
     double recordStartTime = 0.0;
     std::string recordFilename;
     
-    // Инициализация из прочитанных параметров
     void init() {
         if (a_km <= 0.0 || e >= 1.0) {
             destroyed = true;
@@ -422,12 +413,11 @@ struct Satellite {
         if (satEBO) glDeleteBuffers(1, &satEBO);
     }
 
-    // Запуск записи траектории
     void startRecording(double currentTime) {
         if (destroyed) return;
         recording = true;
         recordStartTime = currentTime;
-        lastRecordTime = currentTime - recordInterval; // чтобы сразу записать первую точку
+        lastRecordTime = currentTime - recordInterval;
         recordFilename = "satellite_" + std::to_string(id) + "_orbit.csv";
         std::ofstream file(recordFilename);
         file << "time,x_km,y_km,z_km\n";
@@ -436,7 +426,6 @@ struct Satellite {
                   << " (period = " << orbitPeriod << " s)" << std::endl;
     }
 
-    // Запись очередной точки (вызывается в главном цикле)
     void recordPosition(double currentTime) {
         if (!recording || destroyed) return;
         if (currentTime - lastRecordTime < recordInterval) return;
@@ -449,7 +438,6 @@ struct Satellite {
 
         lastRecordTime = currentTime;
 
-        // Останавливаем запись, когда прошёл один период
         if (currentTime - recordStartTime >= orbitPeriod - recordInterval*0.5) {
             recording = false;
             std::cout << "Satellite " << id << " orbit recording finished (one period). File: "
@@ -581,9 +569,10 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     pitch += yoffset;
     if (pitch > 89.0f) pitch = 89.0f;
     if (pitch < -89.0f) pitch = -89.0f;
+    // Камера вращается вокруг оси Z: yaw – долгота, pitch – широта
     camX = radius * cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    camY = radius * sin(glm::radians(pitch));
-    camZ = radius * sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    camY = radius * sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    camZ = radius * sin(glm::radians(pitch));
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
@@ -591,8 +580,8 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
     if (radius < 2.0f) radius = 2.0f;
     if (radius > 15.0f) radius = 15.0f;
     camX = radius * cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    camY = radius * sin(glm::radians(pitch));
-    camZ = radius * sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    camY = radius * sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    camZ = radius * sin(glm::radians(pitch));
 }
 
 // ----------------------- Обработка клавиш -----------------------
@@ -607,8 +596,8 @@ void processInput(GLFWwindow* window, std::vector<Satellite>& satellites, bool& 
 
     if (rotated) {
         camX = radius * cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-        camY = radius * sin(glm::radians(pitch));
-        camZ = radius * sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+        camY = radius * sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+        camZ = radius * sin(glm::radians(pitch));
     }
 
     if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
@@ -636,7 +625,6 @@ void processInput(GLFWwindow* window, std::vector<Satellite>& satellites, bool& 
         glfwWaitEventsTimeout(0.15);
     }
     
-    // Управление масштабом времени
     bool shiftPressed = (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) ||
                         (glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS);
     float step = shiftPressed ? 10.0f : 1.0f;
@@ -658,7 +646,30 @@ void processInput(GLFWwindow* window, std::vector<Satellite>& satellites, bool& 
         glfwWaitEventsTimeout(0.15);
     }
 
-    // Запись траектории по клавише R
+    // Быстрые виды вдоль осей (корректные углы для новой системы)
+    if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS) {
+        yaw = 0.0f; pitch = 0.0f; // вид с +X
+        radius = 6.0f;
+        glfwSetWindowTitle(window, "Earth Viewer - View: +X");
+        glfwWaitEventsTimeout(0.2);
+    }
+    if (glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS) {
+        yaw = 90.0f; pitch = 0.0f; // вид с +Y
+        radius = 6.0f;
+        glfwSetWindowTitle(window, "Earth Viewer - View: +Y");
+        glfwWaitEventsTimeout(0.2);
+    }
+    if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS) {
+        yaw = 0.0f; pitch = 90.0f; // вид с +Z
+        radius = 6.0f;
+        glfwSetWindowTitle(window, "Earth Viewer - View: +Z");
+        glfwWaitEventsTimeout(0.2);
+    }
+    // Обновляем позицию камеры после ручной установки углов
+    camX = radius * cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    camY = radius * sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    camZ = radius * sin(glm::radians(pitch));
+
     if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
         for (auto& sat : satellites) {
             if (!sat.destroyed && !sat.recording) {
@@ -780,8 +791,8 @@ int main() {
     glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH/SCR_HEIGHT, 0.1f, 100.0f);
     yaw = -90.0f; pitch = 0.0f; radius = 6.0f;
     camX = radius * cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    camY = radius * sin(glm::radians(pitch));
-    camZ = radius * sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    camY = radius * sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    camZ = radius * sin(glm::radians(pitch));
 
     float lastTime = glfwGetTime();
     double simTime = 0.0;
@@ -811,7 +822,7 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glm::vec3 camPos(camX, camY, camZ);
-        glm::mat4 view = glm::lookAt(camPos, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 view = glm::lookAt(camPos, glm::vec3(0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 
         // Земля
         glUseProgram(earthProgram);
