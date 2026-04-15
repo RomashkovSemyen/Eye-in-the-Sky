@@ -32,5 +32,11 @@ points.txt: satellite_1_orbit.csv XYtoPL
 XYtoPL: XYtoPL.cpp
 	g++ XYtoPL.cpp -o XYtoPL
 
+<<<<<<< HEAD
 trass: points.txt draw_line input.jpg
 	./draw_line input.jpg points.txt 25
+=======
+
+trass: points.txt draw_line.o input.jpg
+	./draw_line input.jpg points.txt 1
+>>>>>>> 7eb58f053bcfb15d5e1d6006ed49804789d5bc85

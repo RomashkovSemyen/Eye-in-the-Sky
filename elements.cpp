@@ -23,9 +23,21 @@ int main() {
         std::cerr << "Ошибка: не удалось открыть init.txt\n";
         return 1;
     }
-    double x, y, z, vx, vy, vz;
-    infile >> x >> y >> z >> vx >> vy >> vz;
+    double lambda_deg, phi_deg, h, vx, vy, vz;
+    infile >> lambda_deg >> phi_deg >> h >> vx >> vy >> vz;
     infile.close();
+
+    // Перевод углов из градусов в радианы
+    double lambda_rad = lambda_deg * M_PI / 180.0;
+    double phi_rad   = phi_deg   * M_PI / 180.0;
+
+    // Расстояние от центра Земли
+    double r_center = R_EARTH + h;
+
+    // Пересчёт сферических координат в декартовы (Земля сферическая)
+    double x = r_center * cos(phi_rad) * cos(lambda_rad);
+    double y = r_center * cos(phi_rad) * sin(lambda_rad);
+    double z = r_center * sin(phi_rad);
 
     Vector r = {x, y, z};
     Vector v = {vx, vy, vz};
