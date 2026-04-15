@@ -3,8 +3,8 @@
 all: earth
 
 clean:
-	rm -f elems.txt earth elements *.csv *.o
-
+	rm -f elems.txt earth elements *.csv *.o points.txt picture.jpg
+ 
 elements: elements.cpp
 	g++ elements.cpp -o $@
 
@@ -19,3 +19,16 @@ earth_render.o: earth_render.cpp
 
 earth: earth_render.o glad.o elems.txt 
 	g++ earth_render.o glad.o -o earth -lglfw -lGL
+
+draw_line.o:
+	g++ draw_line.cpp -o draw_line -I./stb_headers
+
+points.txt: satellite_1_orbit.csv XYtoPL.o
+	./XYtoPL satellite_1_orbit.csv
+
+XYtoPL.o: XYtoPL.cpp
+	g++ XYtoPL.cpp -o XYtoPL
+
+
+trass: points.txt draw_line.o input.jpg
+	./draw_line input.jpg points.txt 25
