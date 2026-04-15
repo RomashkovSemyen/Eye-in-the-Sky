@@ -29,24 +29,21 @@ const unsigned int SCR_HEIGHT = 720;
 bool firstMouse = true;
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
-float yaw = -90.0f;        // угол в плоскости XY (аналог долготы)
-float pitch = 0.0f;        // угол возвышения над плоскостью XY
+float yaw = -90.0f;
+float pitch = 0.0f;
 float radius = 5.0f;
 float camX, camY, camZ;
 float mouseSensitivity = 0.01f;
 bool mousePressed = false;
 
 // ----------------------- Физические константы -----------------------
-const double MU_KM3 = 398600.4418;      // гравитационный параметр Земли, км³/с²
-const double R_EARTH_KM = 6400.0;        // радиус Земли, км
-const double SCALE = 1.0 / R_EARTH_KM;   // масштаб: 1 единица = радиус Земли
-const double SAT_RADIUS_KM = 500.0;      // условный радиус спутника, км
+const double MU_KM3 = 398600.4418;
+const double R_EARTH_KM = 6400.0;
+const double SCALE = 1.0 / R_EARTH_KM;
+const double SAT_RADIUS_KM = 500.0;
 const double SAT_RADIUS_VIS = SAT_RADIUS_KM * SCALE;
-
-// Реальная угловая скорость вращения Земли (рад/с) – один оборот за 24 часа
 const double EARTH_ANGULAR_SPEED = 2.0 * M_PI / 86400.0;
 
-// Масштаб времени (изменяется стрелками)
 float timeScale = 1.0f;
 
 // ----------------------- Шейдеры -----------------------
@@ -181,7 +178,7 @@ void generateSphere(std::vector<float>& vertices, std::vector<unsigned int>& ind
             float sectorAngle = j * sectorStep;
             x = xy * cosf(sectorAngle);
             y = xy * sinf(sectorAngle);
-            s = (float)j / sectors + 0.5f; // сдвиг на 180 градусов
+            s = (float)j / sectors + 0.5f;
             
             vertices.push_back(x);
             vertices.push_back(y);
@@ -247,7 +244,7 @@ void generateSimpleSphere(std::vector<float>& vertices, std::vector<unsigned int
     }
 }
 
-// ----------------------- Генерация орбиты по кеплеровым элементам (в плоскости XY) -----------------------
+// ----------------------- Генерация орбиты -----------------------
 void generateOrbit(std::vector<float>& orbitVertices, double a_km, double e, int segments) {
     if (e < 0.0) e = 0.0;
     if (e >= 1.0) e = 0.99;
@@ -295,7 +292,6 @@ void generateArrows(std::vector<float>& vertices) {
 // ----------------------- Структура спутника -----------------------
 struct Satellite {
     int id;
-    // Кеплеровы элементы (из elems.txt)
     double a_km = 0.0;
     double e = 0.0;
     double i_rad = 0.0;
@@ -319,15 +315,11 @@ struct Satellite {
     
     glm::dvec3 position_km;
     glm::dvec3 velocity_km;
-
-    bool recording = false;
-    double recordInterval = 0.1;
-    double lastRecordTime = -1.0;
-    double orbitPeriod = 0.0;
-    double recordStartTime = 0.0;
-    std::string recordFilename;
     
-    void init() {
+    double orbitPeriod = 0.0;
+
+    // Инициализация без OpenGL (для консольного режима)
+    void initOrbitParams() {
         if (a_km <= 0.0 || e >= 1.0) {
             destroyed = true;
             return;
@@ -335,7 +327,11 @@ struct Satellite {
         meanMotion = sqrt(MU_KM3 / fabs(a_km*a_km*a_km));
         orbitPeriod = 2.0 * M_PI / meanMotion;
         T0 = 0.0;
-        
+    }
+
+    // Полная инициализация с OpenGL (для графического режима)
+    void initGL() {
+        if (destroyed) return;
         generateOrbit(orbitVertices, a_km, e, 200);
         orbitVertexCount = orbitVertices.size() / 3;
         
@@ -412,43 +408,10 @@ struct Satellite {
         if (satVBO) glDeleteBuffers(1, &satVBO);
         if (satEBO) glDeleteBuffers(1, &satEBO);
     }
-
-    void startRecording(double currentTime) {
-        if (destroyed) return;
-        recording = true;
-        recordStartTime = currentTime;
-        lastRecordTime = currentTime - recordInterval;
-        recordFilename = "satellite_" + std::to_string(id) + "_orbit.csv";
-        std::ofstream file(recordFilename);
-        file << "time,x_km,y_km,z_km\n";
-        file.close();
-        std::cout << "Started recording satellite " << id << " orbit to " << recordFilename
-                  << " (period = " << orbitPeriod << " s)" << std::endl;
-    }
-
-    void stopRecording() {
-        if (recording) {
-            recording = false;
-            std::cout << "Stopped recording satellite " << id << " orbit. File: " << recordFilename << std::endl;
-        }
-    }
-
-        void recordPosition(double currentTime) {
-        if (!recording || destroyed) return;
-        if (currentTime - lastRecordTime < recordInterval) return;
-
-        std::ofstream file(recordFilename, std::ios::app);
-        file << std::fixed << std::setprecision(3);
-        file << currentTime << ","
-             << position_km.x << "," << position_km.y << "," << position_km.z << "\n";
-        file.close();
-
-        lastRecordTime = currentTime;
-    }
 };
 
 // ----------------------- Чтение elems.txt -----------------------
-std::vector<Satellite> loadSatellitesFromFile(const std::string& filename) {
+std::vector<Satellite> loadSatellitesFromFile(const std::string& filename, bool withOpenGL) {
     std::vector<Satellite> satellites;
     std::ifstream file(filename);
     if (!file.is_open()) {
@@ -504,7 +467,10 @@ std::vector<Satellite> loadSatellitesFromFile(const std::string& filename) {
         };
         sat.color = colors[(sat.id - 1) % 5];
         
-        sat.init();
+        sat.initOrbitParams();
+        if (withOpenGL) {
+            sat.initGL();
+        }
         satellites.push_back(sat);
     }
     return satellites;
@@ -570,7 +536,6 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     pitch += yoffset;
     if (pitch > 89.0f) pitch = 89.0f;
     if (pitch < -89.0f) pitch = -89.0f;
-    // Камера вращается вокруг оси Z: yaw – долгота, pitch – широта
     camX = radius * cos(glm::radians(yaw)) * cos(glm::radians(pitch));
     camY = radius * sin(glm::radians(yaw)) * cos(glm::radians(pitch));
     camZ = radius * sin(glm::radians(pitch));
@@ -586,7 +551,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
 }
 
 // ----------------------- Обработка клавиш -----------------------
-void processInput(GLFWwindow* window, std::vector<Satellite>& satellites, bool& showVelocity, double simTime) {
+void processInput(GLFWwindow* window, std::vector<Satellite>& satellites) {
     float rotateSpeed = 1.0f;
     bool rotated = false;
 
@@ -621,11 +586,6 @@ void processInput(GLFWwindow* window, std::vector<Satellite>& satellites, bool& 
         }
     }
     
-    if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS) {
-        showVelocity = !showVelocity;
-        glfwWaitEventsTimeout(0.15);
-    }
-    
     bool shiftPressed = (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) ||
                         (glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS);
     float step = shiftPressed ? 10.0f : 1.0f;
@@ -647,39 +607,27 @@ void processInput(GLFWwindow* window, std::vector<Satellite>& satellites, bool& 
         glfwWaitEventsTimeout(0.15);
     }
 
-    // Быстрые виды вдоль осей (корректные углы для новой системы)
     if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS) {
-        yaw = 0.0f; pitch = 0.0f; // вид с +X
+        yaw = 0.0f; pitch = 0.0f;
         radius = 6.0f;
         glfwSetWindowTitle(window, "Earth Viewer - View: +X");
         glfwWaitEventsTimeout(0.2);
     }
     if (glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS) {
-        yaw = 90.0f; pitch = 0.0f; // вид с +Y
+        yaw = 90.0f; pitch = 0.0f;
         radius = 6.0f;
         glfwSetWindowTitle(window, "Earth Viewer - View: +Y");
         glfwWaitEventsTimeout(0.2);
     }
     if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS) {
-        yaw = 0.0f; pitch = 90.0f; // вид с +Z
+        yaw = 0.0f; pitch = 90.0f;
         radius = 6.0f;
         glfwSetWindowTitle(window, "Earth Viewer - View: +Z");
         glfwWaitEventsTimeout(0.2);
     }
-    // Обновляем позицию камеры после ручной установки углов
     camX = radius * cos(glm::radians(yaw)) * cos(glm::radians(pitch));
     camY = radius * sin(glm::radians(yaw)) * cos(glm::radians(pitch));
     camZ = radius * sin(glm::radians(pitch));
-
-    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
-        for (auto& sat : satellites) {
-            if (!sat.destroyed && !sat.recording) {
-                sat.startRecording(simTime);
-                break;
-            }
-        }
-        glfwWaitEventsTimeout(0.2);
-    }
 }
 
 // ----------------------- Проверка столкновений -----------------------
@@ -699,8 +647,69 @@ void checkCollisions(std::vector<Satellite>& satellites, std::string& destructio
     }
 }
 
+// ----------------------- Автоматическая запись траекторий -----------------------
+void recordTrajectories(const std::vector<Satellite>& satellites, double totalTime, double stepSec) {
+    for (const auto& sat : satellites) {
+        if (sat.destroyed) continue;
+        std::string filename = "satellite_" + std::to_string(sat.id) + "_orbit.csv";
+        std::ofstream file(filename);
+        file << "time,x_km,y_km,z_km\n";
+        
+        Satellite simSat = sat;
+        for (double t = 0.0; t <= totalTime; t += stepSec) {
+            simSat.update(t);
+            file << std::fixed << std::setprecision(3)
+                 << t << ","
+                 << simSat.position_km.x << ","
+                 << simSat.position_km.y << ","
+                 << simSat.position_km.z << "\n";
+        }
+        file.close();
+        std::cout << "Saved trajectory to " << filename << std::endl;
+    }
+}
+
 // ----------------------- Main -----------------------
-int main() {
+int main(int argc, char* argv[]) {
+    // Проверяем аргументы командной строки
+    if (argc >= 2) {
+        // Режим записи CSV (без OpenGL)
+        std::vector<Satellite> satellites = loadSatellitesFromFile("elems.txt", false);
+        if (satellites.empty()) {
+            std::cerr << "Не найдено ни одного спутника в elems.txt." << std::endl;
+            return -1;
+        }
+
+        double periods = std::atof(argv[1]);
+        double stepSec = 60.0;
+        if (argc >= 3) {
+            stepSec = std::atof(argv[2]);
+        }
+        if (periods <= 0.0) {
+            std::cerr << "Количество периодов должно быть положительным." << std::endl;
+            return -1;
+        }
+        
+        double maxPeriod = 0.0;
+        for (const auto& sat : satellites) {
+            if (!sat.destroyed && sat.orbitPeriod > maxPeriod)
+                maxPeriod = sat.orbitPeriod;
+        }
+        if (maxPeriod <= 0.0) {
+            std::cerr << "Нет активных спутников с корректной орбитой." << std::endl;
+            return -1;
+        }
+        
+        double totalTime = periods * maxPeriod;
+        std::cout << "Запись траекторий на " << periods << " периодов ("
+                  << totalTime << " секунд) с шагом " << stepSec << " с." << std::endl;
+        
+        recordTrajectories(satellites, totalTime, stepSec);
+        std::cout << "Запись завершена." << std::endl;
+        return 0;
+    }
+
+    // --- Графический режим (без аргументов) ---
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -769,23 +778,12 @@ int main() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-    // Загрузка спутников
-    std::vector<Satellite> satellites = loadSatellitesFromFile("elems.txt");
+    // Загрузка спутников с OpenGL
+    std::vector<Satellite> satellites = loadSatellitesFromFile("elems.txt", true);
     if (satellites.empty()) {
         std::cerr << "Не найдено ни одного спутника в elems.txt." << std::endl;
     }
 
-    // Буфер для векторов скорости
-    unsigned int velVAO, velVBO;
-    glGenVertexArrays(1, &velVAO);
-    glGenBuffers(1, &velVBO);
-    glBindVertexArray(velVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, velVBO);
-    glBufferData(GL_ARRAY_BUFFER, 1024 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    bool showVelocity = false;
     std::string destructionMessage;
     float messageTimer = 0.0f;
 
@@ -804,13 +802,10 @@ int main() {
         lastTime = currentTime;
         simTime += deltaTime * timeScale;
         
-        processInput(window, satellites, showVelocity, simTime);
+        processInput(window, satellites);
         
         for (auto& sat : satellites) {
             sat.update(simTime);
-            if (sat.recording) {
-                sat.recordPosition(simTime);
-            }
         }
         
         checkCollisions(satellites, destructionMessage, messageTimer);
@@ -869,69 +864,6 @@ int main() {
             glDrawElements(GL_TRIANGLES, sat.satIndexCount, GL_UNSIGNED_INT, 0);
         }
 
-        // Векторы скорости
-        if (showVelocity) {
-            glUseProgram(lineProgram);
-            glUniformMatrix4fv(glGetUniformLocation(lineProgram, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
-            glUniformMatrix4fv(glGetUniformLocation(lineProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
-            glm::mat4 identity(1.0f);
-            glUniformMatrix4fv(glGetUniformLocation(lineProgram, "model"), 1, GL_FALSE, glm::value_ptr(identity));
-            
-            std::vector<float> allLineVerts;
-            std::vector<std::pair<glm::dvec3, double>> speedTexts;
-            
-            for (const auto& sat : satellites) {
-                if (sat.destroyed) continue;
-                glm::dvec3 vel = sat.velocity_km;
-                double speed = glm::length(vel);
-                if (speed < 0.001) continue;
-                
-                glm::dvec3 velDir = glm::normalize(vel);
-                double scaleVis = 0.5 * SCALE;
-                glm::dvec3 endPos_km = sat.position_km + velDir * speed * scaleVis;
-                glm::vec3 startVis = glm::vec3(sat.position_km * SCALE);
-                glm::vec3 endVis   = glm::vec3(endPos_km * SCALE);
-                
-                allLineVerts.insert(allLineVerts.end(), {startVis.x, startVis.y, startVis.z, endVis.x, endVis.y, endVis.z});
-                
-                double arrowSize = 0.12 * speed * scaleVis;
-                glm::dvec3 perp1;
-                if (fabs(velDir.x) > 0.9)
-                    perp1 = glm::normalize(glm::cross(velDir, glm::dvec3(0,1,0)));
-                else
-                    perp1 = glm::normalize(glm::cross(velDir, glm::dvec3(1,0,0)));
-                glm::dvec3 arrowBase_km = endPos_km - velDir * arrowSize * 1.5;
-                glm::vec3 leftWing  = glm::vec3((arrowBase_km + perp1 * arrowSize) * SCALE);
-                glm::vec3 rightWing = glm::vec3((arrowBase_km - perp1 * arrowSize) * SCALE);
-                
-                allLineVerts.insert(allLineVerts.end(), {endVis.x, endVis.y, endVis.z, leftWing.x, leftWing.y, leftWing.z});
-                allLineVerts.insert(allLineVerts.end(), {endVis.x, endVis.y, endVis.z, rightWing.x, rightWing.y, rightWing.z});
-                
-                speedTexts.push_back({endPos_km, speed});
-            }
-            
-            if (!allLineVerts.empty()) {
-                glBindVertexArray(velVAO);
-                glBindBuffer(GL_ARRAY_BUFFER, velVBO);
-                glBufferData(GL_ARRAY_BUFFER, allLineVerts.size() * sizeof(float), allLineVerts.data(), GL_DYNAMIC_DRAW);
-                glUniform3f(glGetUniformLocation(lineProgram, "color"), 1.0f, 1.0f, 1.0f);
-                glDrawArrays(GL_LINES, 0, allLineVerts.size() / 3);
-            }
-            
-            for (const auto& info : speedTexts) {
-                glm::vec3 endVis = glm::vec3(info.first * SCALE);
-                glm::vec4 clip = proj * view * glm::vec4(endVis, 1.0f);
-                if (clip.w > 0.0f) {
-                    glm::vec3 ndc = glm::vec3(clip) / clip.w;
-                    float screenX = (ndc.x * 0.5f + 0.5f) * SCR_WIDTH;
-                    float screenY = (ndc.y * 0.5f + 0.5f) * SCR_HEIGHT;
-                    std::ostringstream ss;
-                    ss << std::fixed << std::setprecision(2) << info.second;
-                    renderText(textProgram, ss.str(), screenX + 10, screenY - 5, glm::vec3(1,1,1), 1.5f);
-                }
-            }
-        }
-
         // Оси
         glDisable(GL_DEPTH_TEST);
         glUseProgram(lineProgram);
@@ -960,8 +892,6 @@ int main() {
     for (auto& sat : satellites) {
         sat.cleanup();
     }
-    glDeleteVertexArrays(1, &velVAO);
-    glDeleteBuffers(1, &velVBO);
 
     glfwTerminate();
     return 0;

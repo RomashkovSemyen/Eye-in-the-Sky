@@ -1,9 +1,9 @@
 .PHONY: all clean install uninstall
 
-all: earth
+all: earth trass
 
 clean:
-	rm -f elems.txt earth elements *.csv *.o points.txt picture.jpg
+	rm -f elems.txt earth draw_line XYtoPL elements *.csv *.o points.txt picture.jpg
  
 elements: elements.cpp
 	g++ elements.cpp -o $@
@@ -20,15 +20,17 @@ earth_render.o: earth_render.cpp
 earth: earth_render.o glad.o elems.txt 
 	g++ earth_render.o glad.o -o earth -lglfw -lGL
 
-draw_line.o:
+satellite_1_orbit.csv: earth
+	./earth 5 1
+
+draw_line: draw_line.cpp
 	g++ draw_line.cpp -o draw_line -I./stb_headers
 
-points.txt: satellite_1_orbit.csv XYtoPL.o
+points.txt: satellite_1_orbit.csv XYtoPL
 	./XYtoPL satellite_1_orbit.csv
 
-XYtoPL.o: XYtoPL.cpp
+XYtoPL: XYtoPL.cpp
 	g++ XYtoPL.cpp -o XYtoPL
 
-
-trass: points.txt draw_line.o input.jpg
+trass: points.txt draw_line input.jpg
 	./draw_line input.jpg points.txt 25
