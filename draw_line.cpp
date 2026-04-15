@@ -12,9 +12,21 @@
 #include <string>
 #include <sstream>
 #include <cmath>
+#include <cctype>
 
 const int THICKNESS = 3;
 const int DEFAULT_STEP = 50;
+
+// Проверка, является ли строка целым числом (положительным или отрицательным)
+bool isInteger(const std::string& s) {
+    if (s.empty()) return false;
+    size_t start = (s[0] == '-') ? 1 : 0;
+    if (start == s.size()) return false;
+    for (size_t i = start; i < s.size(); ++i) {
+        if (!std::isdigit(static_cast<unsigned char>(s[i]))) return false;
+    }
+    return true;
+}
 
 void drawSquare(unsigned char* data, int width, int height,
                 int cx, int cy, int radius,
@@ -80,22 +92,47 @@ inline double angularDistance(double lat1, double lon1, double lat2, double lon2
 }
 
 int main(int argc, char* argv[]) {
-    if (argc < 4 || argc > 5) {
-        std::cerr << "Usage: " << argv[0] << " <input.jpg> <output.jpg> <coords.txt> [step=" << DEFAULT_STEP << "]\n";
-        std::cerr << "  step : take every step-th point (default " << DEFAULT_STEP << ")\n";
-        std::cerr << "Output: a single image with the full trajectory.\n";
+    if (argc < 3 || argc > 5) {
+        std::cerr << "Usage: " << argv[0] << " <input.jpg> <coords.txt> [step] [output.jpg]\n";
+        std::cerr << "  step   : take every step-th point (default " << DEFAULT_STEP << ")\n";
+        std::cerr << "  output : output image file name (default picture.jpg)\n";
+        std::cerr << "Example: " << argv[0] << " map.jpg points.txt 50 result.jpg\n";
         return 1;
     }
 
     const char* inputFile  = argv[1];
-    const char* outputFile = argv[2];
-    const char* coordsFile = argv[3];
+    const char* coordsFile = argv[2];
     int step = DEFAULT_STEP;
-    if (argc == 5) {
-        step = std::atoi(argv[4]);
-        if (step <= 0) {
-            std::cerr << "Error: step must be positive.\n";
-            return 1;
+    const char* outputFile = "picture.jpg";
+
+    // Разбор опциональных аргументов (argc может быть 3, 4 или 5)
+    if (argc >= 4) {
+        std::string opt = argv[3];
+        if (isInteger(opt)) {
+            step = std::atoi(opt.c_str());
+            if (step <= 0) {
+                std::cerr << "Error: step must be positive.\n";
+                return 1;
+            }
+            if (argc == 5) {
+                outputFile = argv[4];
+            }
+        } else {
+            outputFile = argv[3];
+            if (argc == 5) {
+                // Если argv[3] не число, а argv[4] есть, то argv[4] должен быть step
+                std::string opt2 = argv[4];
+                if (isInteger(opt2)) {
+                    step = std::atoi(opt2.c_str());
+                    if (step <= 0) {
+                        std::cerr << "Error: step must be positive.\n";
+                        return 1;
+                    }
+                } else {
+                    std::cerr << "Error: invalid step value (must be an integer).\n";
+                    return 1;
+                }
+            }
         }
     }
 
