@@ -2,6 +2,12 @@
 
 all: earth trass
 
+install:
+	sudo install ./earth /usr/local/bin
+
+unistall:
+	rm /usr/local/bin/earth
+
 clean:
 	rm -f elems.txt earth draw_line XYtoPL elements *.csv *.o points.txt picture.jpg
  
@@ -21,7 +27,7 @@ earth: earth_render.o glad.o elems.txt
 	g++ earth_render.o glad.o -o earth -lglfw -lGL
 
 satellite_1_orbit.csv: earth
-	./earth 5 1
+	./earth 12 1
 
 draw_line: draw_line.cpp
 	g++ draw_line.cpp -o draw_line -I./stb_headers

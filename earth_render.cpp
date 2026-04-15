@@ -1,3 +1,26 @@
+/*
+ * Earth Satellite Viewer
+ * 
+ * Управление:
+ *   - ЛКМ + мышь: вращение камеры
+ *   - WASD: вращение камеры (без зажатия ЛКМ)
+ *   - Колесо мыши: приближение/отдаление
+ *   - Стрелки вверх/вниз: чувствительность мыши
+ *   - Стрелки влево/вправо: изменение масштаба времени
+ *   - Shift + стрелки влево/вправо: быстрое изменение масштаба времени
+ *   - X, Y, Z: вид по осям
+ *   - 1-5: показать/скрыть орбиту соответствующего спутника
+ * 
+ * Формат elems.txt (пример):
+ * a = 7000
+ * e = 0.01
+ * i = 51.6
+ * W = 0.0
+ * w = 0.0
+ * nu = 45.0
+ * Комментарий о статусе
+ */
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -297,6 +320,7 @@ struct Satellite {
     double i_rad = 0.0;
     double W_rad = 0.0;
     double w_rad = 0.0;
+    double nu0_rad = 0.0;   // истинная аномалия на момент t=0
     double meanMotion = 0.0;
     double T0 = 0.0;
     
@@ -326,7 +350,15 @@ struct Satellite {
         }
         meanMotion = sqrt(MU_KM3 / fabs(a_km*a_km*a_km));
         orbitPeriod = 2.0 * M_PI / meanMotion;
-        T0 = 0.0;
+        
+        // Перевод истинной аномалии nu0 в среднюю аномалию M0
+        double tan_nu2 = tan(nu0_rad / 2.0);
+        double tan_E2 = sqrt((1.0 - e) / (1.0 + e)) * tan_nu2;
+        double E0 = 2.0 * atan(tan_E2);
+        double M0 = E0 - e * sin(E0);
+        
+        // Вычисляем T0 так, чтобы при t = 0 средняя аномалия равнялась M0
+        T0 = -M0 / meanMotion;
     }
 
     // Полная инициализация с OpenGL (для графического режима)
@@ -380,10 +412,10 @@ struct Satellite {
         double vy_orb =  b * cosE * dEdt;
         
         double cosw = cos(w_rad), sinw = sin(w_rad);
-        double x_rot = x_orb * cosw - y_orb * sinw;
-        double y_rot = x_orb * sinw + y_orb * cosw;
-        double vx_rot = vx_orb * cosw - vy_orb * sinw;
-        double vy_rot = vx_orb * sinw + vy_orb * cosw;
+        double x_rot =  x_orb * cosw + y_orb * sinw;
+        double y_rot = -x_orb * sinw + y_orb * cosw;
+        double vx_rot =  vx_orb * cosw + vy_orb * sinw;
+        double vy_rot = -vx_orb * sinw + vy_orb * cosw;
         
         double cosW = cos(W_rad), sinW = sin(W_rad);
         double cosi = cos(i_rad), sini = sin(i_rad);
@@ -449,6 +481,12 @@ std::vector<Satellite> loadSatellitesFromFile(const std::string& filename, bool 
         double w_deg = std::strtod(line.substr(4).c_str(), nullptr);
         sat.w_rad = w_deg * M_PI / 180.0;
         
+        // Новая строка: истинная аномалия nu
+        if (!std::getline(file, line) || line.find("nu = ") != 0) break;
+        double nu_deg = std::strtod(line.substr(5).c_str(), nullptr);
+        sat.nu0_rad = nu_deg * M_PI / 180.0;
+        
+        // Строка статуса
         if (!std::getline(file, line)) break;
         sat.statusMsg = line;
         
@@ -836,14 +874,13 @@ int main(int argc, char* argv[]) {
         glUseProgram(lineProgram);
         glUniformMatrix4fv(glGetUniformLocation(lineProgram, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
         glUniformMatrix4fv(glGetUniformLocation(lineProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
-        
         for (const auto& sat : satellites) {
             if (sat.destroyed) continue;
             if (sat.orbitVisible) {
                 glUniform3f(glGetUniformLocation(lineProgram, "color"), sat.color.r, sat.color.g, sat.color.b);
                 glm::mat4 orbitRot = glm::rotate(glm::mat4(1.0f), (float)sat.W_rad, glm::vec3(0,0,1));
                 orbitRot = glm::rotate(orbitRot, (float)sat.i_rad, glm::vec3(1,0,0));
-                orbitRot = glm::rotate(orbitRot, (float)sat.w_rad, glm::vec3(0,0,1));
+                orbitRot = glm::rotate(orbitRot, (float)(-sat.w_rad), glm::vec3(0,0,1)); // минус w!
                 glUniformMatrix4fv(glGetUniformLocation(lineProgram, "model"), 1, GL_FALSE, glm::value_ptr(orbitRot));
                 glBindVertexArray(sat.orbitVAO);
                 glDrawArrays(GL_LINE_LOOP, 0, sat.orbitVertexCount);
