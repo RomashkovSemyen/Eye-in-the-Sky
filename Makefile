@@ -31,4 +31,4 @@ XYtoPL.o: XYtoPL.cpp
 
 
 trass: points.txt draw_line.o input.jpg
-	./draw_line input.jpg points.txt 25
+	./draw_line input.jpg points.txt 1

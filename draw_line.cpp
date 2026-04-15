@@ -195,12 +195,12 @@ int main(int argc, char* argv[]) {
     unsigned char* frame = copyImage(original, width, height, 3);
 
     // Рисуем все соединительные линии (если расстояние меньше 100°)
-    for (int i = 0; i < M - 1; ++i) {
+  /*  for (int i = 0; i < M - 1; ++i) {
         if (angularDistance(dx[i], dy[i], dx[i+1], dy[i+1]) > 100.0) {
             continue;
         }
         drawThickLine(frame, width, height, px[i], py[i], px[i+1], py[i+1], 255, 0, 0);
-    }
+    }*/
 
     // Рисуем все точки (поверх линий)
     for (int i = 0; i < M; ++i) {
