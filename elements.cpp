@@ -27,14 +27,10 @@ int main() {
     infile >> lambda_deg >> phi_deg >> h >> vx >> vy >> vz;
     infile.close();
 
-    // Перевод углов из градусов в радианы
     double lambda_rad = lambda_deg * M_PI / 180.0;
     double phi_rad   = phi_deg   * M_PI / 180.0;
-
-    // Расстояние от центра Земли
     double r_center = R_EARTH + h;
 
-    // Пересчёт сферических координат в декартовы (Земля сферическая)
     double x = r_center * cos(phi_rad) * cos(lambda_rad);
     double y = r_center * cos(phi_rad) * sin(lambda_rad);
     double z = r_center * sin(phi_rad);
@@ -45,36 +41,30 @@ int main() {
     double v_mod = norm(v);
     double v2 = dot(v, v);
 
-    // Если начальная точка уже под поверхностью – немедленное разрушение
     if (r_mod < R_EARTH) {
         std::ofstream outfile("elems.txt");
-        outfile << "a = ?\ne = ?\ni = ?\nW = ?\nw = ?\n";
+        outfile << "a = ?\ne = ?\ni = ?\nW = ?\nw = ?\nnu = ?\n";
         outfile << "Спутник уже под поверхностью Земли. Разрушение неизбежно.\n";
         return 0;
     }
 
-    // 1. Большая полуось (может быть отрицательной для гиперболы)
     double inv_a = 2.0 / r_mod - v2 / MU_KM3;
     double a = 1.0 / inv_a;
 
-    // 2. Удельный момент импульса
     Vector l = cross(r, v);
     double l_mod = norm(l);
 
-    // 3. Вектор эксцентриситета (Лапласа-Рунге-Ленца)
     Vector v_cross_l = cross(v, l);
     Vector e_vec = { v_cross_l.x/MU_KM3 - r.x/r_mod,
                      v_cross_l.y/MU_KM3 - r.y/r_mod,
                      v_cross_l.z/MU_KM3 - r.z/r_mod };
     double e = norm(e_vec);
 
-    // 4. Наклонение
     double cos_i = l.z / l_mod;
     if (cos_i > 1.0) cos_i = 1.0;
     if (cos_i < -1.0) cos_i = -1.0;
     double i = std::acos(cos_i) * RAD_TO_DEG;
 
-    // 5. Вектор восходящего узла N
     Vector N;
     double l_xy2 = l.x*l.x + l.y*l.y;
     if (l_xy2 < EPS) {
@@ -84,12 +74,10 @@ int main() {
         N = {-l.y / n_xy, l.x / n_xy, 0.0};
     }
 
-    // 6. Долгота восходящего узла
     double W_rad = std::atan2(N.y, N.x);
     double W = W_rad * RAD_TO_DEG;
     if (W < 0.0) W += 360.0;
 
-    // 7. Аргумент перицентра
     double w = 0.0;
     if (e > EPS) {
         double cosw = (N.x*e_vec.x + N.y*e_vec.y) / e;
@@ -100,7 +88,6 @@ int main() {
         if (w < 0.0) w += 360.0;
     }
 
-    // Расстояние в перицентре
     double r_peri = 0.0;
     if (e > EPS) {
         r_peri = (l_mod * l_mod) / (MU_KM3 * (1.0 + e));
@@ -108,16 +95,25 @@ int main() {
         r_peri = std::abs(a);
     }
 
-    // Радиальная скорость
     double v_r = dot(r, v) / r_mod;
-
-    // Вторая космическая скорость
     double v_escape = std::sqrt(2.0 * MU_KM3 / r_mod);
 
-    // Формирование сообщения о статусе
-    std::string status;
+    // ====== Добавленный блок: истинная аномалия ======
+    double nu_deg = 0.0;
+    if (e > EPS) {
+        double p = (l_mod * l_mod) / MU_KM3;
+        double cos_nu = (p / r_mod - 1.0) / e;
+        if (cos_nu > 1.0) cos_nu = 1.0;
+        if (cos_nu < -1.0) cos_nu = -1.0;
+        double nu = std::acos(cos_nu);
+        if (v_r < 0.0) {
+            nu = 2.0 * M_PI - nu;
+        }
+        nu_deg = nu * RAD_TO_DEG;
+    }
+    // ===============================================
 
-    // Случай прямолинейного движения (момент импульса близок к нулю)
+    std::string status;
     if (l_mod < EPS) {
         if (v_mod < v_escape - EPS) {
             status = "Ваш спутник скоро разобьётся о поверхность идеально сферической безатмосферной Земли";
@@ -125,14 +121,14 @@ int main() {
             status = "упс, ваш спутник улетел бороздить просторы солнечной системы";
         }
     }
-    else if (e < 1.0 - EPS) {   // Эллиптическая орбита
+    else if (e < 1.0 - EPS) {
         if (r_peri < R_EARTH - EPS) {
             status = "Ваш спутник скоро разобьётся о поверхность идеально сферической безатмосферной Земли";
         } else {
             status = "Запуск успешен";
         }
     }
-    else {   // Параболическая или гиперболическая траектория
+    else {
         if (r_peri < R_EARTH - EPS && v_r < -EPS) {
             status = "Ваш спутник скоро разобьётся о поверхность идеально сферической безатмосферной Земли";
         }
@@ -140,14 +136,10 @@ int main() {
             status = "упс, ваш спутник улетел бороздить просторы солнечной системы";
         }
         else {
-            // Этот случай теоретически невозможен, но оставлен для численной устойчивости.
-            // На практике сюда может попасть вырожденный эллипс с e≈1, l≈0, v<v_escape,
-            // но он уже перехвачен веткой l_mod < EPS.
             status = "Запуск успешен";
         }
     }
 
-    // Вывод результатов в файл
     std::ofstream outfile("elems.txt");
     if (!outfile) {
         std::cerr << "Ошибка: не удалось создать elems.txt\n";
@@ -159,6 +151,7 @@ int main() {
     outfile << "i = " << i << "\n";
     outfile << "W = " << W << "\n";
     outfile << "w = " << w << "\n";
+    outfile << "nu = " << nu_deg << "\n";
     outfile << status << "\n";
 
     outfile.close();
