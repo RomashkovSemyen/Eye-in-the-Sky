@@ -50,13 +50,13 @@ const unsigned int SCR_HEIGHT = 720;
 
 // ----------------------- Камера -----------------------
 bool firstMouse = true;
-float lastX = SCR_WIDTH / 2.0f;
-float lastY = SCR_HEIGHT / 2.0f;
-float yaw = -90.0f;
-float pitch = 0.0f;
-float radius = 5.0f;
-float camX, camY, camZ;
-float mouseSensitivity = 0.01f;
+double lastX = SCR_WIDTH / 2.0f;
+double lastY = SCR_HEIGHT / 2.0f;
+double yaw = -90.0f;
+double pitch = 0.0f;
+double radius = 5.0f;
+double camX, camY, camZ;
+double mouseSensitivity = 0.01f;
 bool mousePressed = false;
 
 // ----------------------- Физические константы -----------------------
@@ -67,7 +67,7 @@ const double SAT_RADIUS_KM = 500.0;
 const double SAT_RADIUS_VIS = SAT_RADIUS_KM * SCALE;
 const double EARTH_ANGULAR_SPEED = 2.0 * M_PI / 86400.0;
 
-float timeScale = 1.0f;
+double timeScale = 1.0f;
 
 // ----------------------- Шейдеры -----------------------
 const char* vertexShaderSource = R"(
@@ -186,19 +186,19 @@ unsigned int loadTexture(const char* path) {
 
 // ----------------------- Генерация сферы -----------------------
 void generateSphere(std::vector<float>& vertices, std::vector<unsigned int>& indices,
-                    float radius, int sectors, int stacks) {
-    float x, y, z, s, t;
-    float sectorStep = 2 * M_PI / sectors;
-    float stackStep = M_PI / stacks;
+                    double radius, int sectors, int stacks) {
+    double x, y, z, s, t;
+    double sectorStep = 2 * M_PI / sectors;
+    double stackStep = M_PI / stacks;
     
     for (int i = 0; i <= stacks; ++i) {
-        float stackAngle = M_PI / 2 - i * stackStep;
+        double stackAngle = M_PI / 2 - i * stackStep;
         z = -radius * sinf(stackAngle);
-        float xy = radius * cosf(stackAngle);
+        double xy = radius * cosf(stackAngle);
         t = 1.0f - (float)i / stacks;
         
         for (int j = 0; j <= sectors; ++j) {
-            float sectorAngle = j * sectorStep;
+            double sectorAngle = j * sectorStep;
             x = xy * cosf(sectorAngle);
             y = xy * sinf(sectorAngle);
             s = (float)j / sectors + 0.5f;
@@ -230,18 +230,18 @@ void generateSphere(std::vector<float>& vertices, std::vector<unsigned int>& ind
 }
 
 void generateSimpleSphere(std::vector<float>& vertices, std::vector<unsigned int>& indices,
-                          float radius, int sectors, int stacks) {
-    float x, y, z;
-    float sectorStep = 2 * M_PI / sectors;
-    float stackStep = M_PI / stacks;
+                          double radius, int sectors, int stacks) {
+    double x, y, z;
+    double sectorStep = 2 * M_PI / sectors;
+    double stackStep = M_PI / stacks;
     
     for (int i = 0; i <= stacks; ++i) {
-        float stackAngle = M_PI / 2 - i * stackStep;
+        double stackAngle = M_PI / 2 - i * stackStep;
         z = -radius * sinf(stackAngle);
-        float xy = radius * cosf(stackAngle);
+        double xy = radius * cosf(stackAngle);
         
         for (int j = 0; j <= sectors; ++j) {
-            float sectorAngle = j * sectorStep;
+            double sectorAngle = j * sectorStep;
             x = xy * cosf(sectorAngle);
             y = xy * sinf(sectorAngle);
             vertices.push_back(x);
@@ -292,10 +292,10 @@ void generateAxesLines(std::vector<float>& vertices) {
 }
 
 void generateArrows(std::vector<float>& vertices) {
-    auto addArrow = [&](float x, float y, float z, float dx, float dy, float dz) {
+    auto addArrow = [&](double x, double y, double z, double dx, double dy, double dz) {
         vertices.push_back(x); vertices.push_back(y); vertices.push_back(z);
         vertices.push_back(x+dx); vertices.push_back(y+dy); vertices.push_back(z+dz);
-        float wing = 0.12f;
+        double wing = 0.12f;
         if (dx != 0) {
             vertices.insert(vertices.end(), {x+dx,y,z, x+dx*0.7f, y+wing, z+wing});
             vertices.insert(vertices.end(), {x+dx,y,z, x+dx*0.7f, y-wing, z-wing});
@@ -515,8 +515,8 @@ std::vector<Satellite> loadSatellitesFromFile(const std::string& filename, bool 
 }
 
 // ----------------------- Рендеринг текста -----------------------
-void renderText(unsigned int shaderProgram, const std::string& text, float x, float y, 
-                glm::vec3 color, float scale = 1.0f) {
+void renderText(unsigned int shaderProgram, const std::string& text, double x, double y, 
+                glm::vec3 color, double scale = 1.0f) {
     glm::mat4 projection = glm::ortho(0.0f, (float)SCR_WIDTH, 0.0f, (float)SCR_HEIGHT);
     glUseProgram(shaderProgram);
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
@@ -566,8 +566,8 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
         lastY = ypos;
         firstMouse = false;
     }
-    float xoffset = (xpos - lastX) * mouseSensitivity;
-    float yoffset = (lastY - ypos) * mouseSensitivity;
+    double xoffset = (xpos - lastX) * mouseSensitivity;
+    double yoffset = (lastY - ypos) * mouseSensitivity;
     lastX = xpos;
     lastY = ypos;
     yaw += xoffset;
@@ -590,7 +590,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
 
 // ----------------------- Обработка клавиш -----------------------
 void processInput(GLFWwindow* window, std::vector<Satellite>& satellites) {
-    float rotateSpeed = 1.0f;
+    double rotateSpeed = 1.0f;
     bool rotated = false;
 
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) { yaw -= rotateSpeed; rotated = true; }
@@ -626,7 +626,7 @@ void processInput(GLFWwindow* window, std::vector<Satellite>& satellites) {
     
     bool shiftPressed = (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) ||
                         (glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS);
-    float step = shiftPressed ? 10.0f : 1.0f;
+    double step = shiftPressed ? 10.0f : 1.0f;
 
     if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
         timeScale = std::max(1.0f, timeScale - step);
@@ -823,7 +823,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::string destructionMessage;
-    float messageTimer = 0.0f;
+    double messageTimer = 0.0f;
 
     glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH/SCR_HEIGHT, 0.1f, 100.0f);
     yaw = -90.0f; pitch = 0.0f; radius = 6.0f;
@@ -831,12 +831,12 @@ int main(int argc, char* argv[]) {
     camY = radius * sin(glm::radians(yaw)) * cos(glm::radians(pitch));
     camZ = radius * sin(glm::radians(pitch));
 
-    float lastTime = glfwGetTime();
+    double lastTime = glfwGetTime();
     double simTime = 0.0;
 
     while (!glfwWindowShouldClose(window)) {
-        float currentTime = glfwGetTime();
-        float deltaTime = currentTime - lastTime;
+        double currentTime = glfwGetTime();
+        double deltaTime = currentTime - lastTime;
         lastTime = currentTime;
         simTime += deltaTime * timeScale;
         
