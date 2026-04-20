@@ -185,7 +185,7 @@ unsigned int loadTexture(const char* path) {
 }
 
 // ----------------------- Генерация сферы -----------------------
-void generateSphere(std::vector<float>& vertices, std::vector<unsigned int>& indices,
+void generateSphere(std::vector<double>& vertices, std::vector<unsigned int>& indices,
                     double radius, int sectors, int stacks) {
     double x, y, z, s, t;
     double sectorStep = 2 * M_PI / sectors;
@@ -195,13 +195,13 @@ void generateSphere(std::vector<float>& vertices, std::vector<unsigned int>& ind
         double stackAngle = M_PI / 2 - i * stackStep;
         z = -radius * sinf(stackAngle);
         double xy = radius * cosf(stackAngle);
-        t = 1.0f - (float)i / stacks;
+        t = 1.0f - (double)i / stacks;
         
         for (int j = 0; j <= sectors; ++j) {
             double sectorAngle = j * sectorStep;
             x = xy * cosf(sectorAngle);
             y = xy * sinf(sectorAngle);
-            s = (float)j / sectors + 0.5f;
+            s = (double)j / sectors + 0.5f;
             
             vertices.push_back(x);
             vertices.push_back(y);
@@ -229,7 +229,7 @@ void generateSphere(std::vector<float>& vertices, std::vector<unsigned int>& ind
     }
 }
 
-void generateSimpleSphere(std::vector<float>& vertices, std::vector<unsigned int>& indices,
+void generateSimpleSphere(std::vector<double>& vertices, std::vector<unsigned int>& indices,
                           double radius, int sectors, int stacks) {
     double x, y, z;
     double sectorStep = 2 * M_PI / sectors;
@@ -268,7 +268,7 @@ void generateSimpleSphere(std::vector<float>& vertices, std::vector<unsigned int
 }
 
 // ----------------------- Генерация орбиты -----------------------
-void generateOrbit(std::vector<float>& orbitVertices, double a_km, double e, int segments) {
+void generateOrbit(std::vector<double>& orbitVertices, double a_km, double e, int segments) {
     if (e < 0.0) e = 0.0;
     if (e >= 1.0) e = 0.99;
     double a_vis = a_km * SCALE;
@@ -278,20 +278,20 @@ void generateOrbit(std::vector<float>& orbitVertices, double a_km, double e, int
         double t = 2.0 * M_PI * i / segments;
         double x = a_vis * cos(t) - c;
         double y = b * sin(t);
-        orbitVertices.push_back((float)x);
-        orbitVertices.push_back((float)y);
+        orbitVertices.push_back((double)x);
+        orbitVertices.push_back((double)y);
         orbitVertices.push_back(0.0f);
     }
 }
 
 // ----------------------- Оси -----------------------
-void generateAxesLines(std::vector<float>& vertices) {
+void generateAxesLines(std::vector<double>& vertices) {
     vertices.insert(vertices.end(), {0,0,0, 2.2f,0,0});
     vertices.insert(vertices.end(), {0,0,0, 0,2.2f,0});
     vertices.insert(vertices.end(), {0,0,0, 0,0,2.2f});
 }
 
-void generateArrows(std::vector<float>& vertices) {
+void generateArrows(std::vector<double>& vertices) {
     auto addArrow = [&](double x, double y, double z, double dx, double dy, double dz) {
         vertices.push_back(x); vertices.push_back(y); vertices.push_back(z);
         vertices.push_back(x+dx); vertices.push_back(y+dy); vertices.push_back(z+dz);
@@ -326,7 +326,7 @@ struct Satellite {
     
     std::string statusMsg;
     
-    std::vector<float> orbitVertices;
+    std::vector<double> orbitVertices;
     unsigned int orbitVAO = 0, orbitVBO = 0;
     int orbitVertexCount = 0;
     
@@ -371,11 +371,11 @@ struct Satellite {
         glGenBuffers(1, &orbitVBO);
         glBindVertexArray(orbitVAO);
         glBindBuffer(GL_ARRAY_BUFFER, orbitVBO);
-        glBufferData(GL_ARRAY_BUFFER, orbitVertices.size() * sizeof(float), orbitVertices.data(), GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+        glBufferData(GL_ARRAY_BUFFER, orbitVertices.size() * sizeof(double), orbitVertices.data(), GL_STATIC_DRAW);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(double), (void*)0);
         glEnableVertexAttribArray(0);
         
-        std::vector<float> satVerts;
+        std::vector<double> satVerts;
         std::vector<unsigned int> satInds;
         generateSimpleSphere(satVerts, satInds, SAT_RADIUS_VIS, 20, 20);
         satIndexCount = satInds.size();
@@ -384,10 +384,10 @@ struct Satellite {
         glGenBuffers(1, &satEBO);
         glBindVertexArray(satVAO);
         glBindBuffer(GL_ARRAY_BUFFER, satVBO);
-        glBufferData(GL_ARRAY_BUFFER, satVerts.size() * sizeof(float), satVerts.data(), GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, satVerts.size() * sizeof(double), satVerts.data(), GL_STATIC_DRAW);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, satEBO);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, satInds.size() * sizeof(unsigned int), satInds.data(), GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(double), (void*)0);
         glEnableVertexAttribArray(0);
     }
     
@@ -517,7 +517,7 @@ std::vector<Satellite> loadSatellitesFromFile(const std::string& filename, bool 
 // ----------------------- Рендеринг текста -----------------------
 void renderText(unsigned int shaderProgram, const std::string& text, double x, double y, 
                 glm::vec3 color, double scale = 1.0f) {
-    glm::mat4 projection = glm::ortho(0.0f, (float)SCR_WIDTH, 0.0f, (float)SCR_HEIGHT);
+    glm::mat4 projection = glm::ortho(0.0f, (double)SCR_WIDTH, 0.0f, (double)SCR_HEIGHT);
     glUseProgram(shaderProgram);
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
     glUniform3f(glGetUniformLocation(shaderProgram, "textColor"), color.r, color.g, color.b);
@@ -530,8 +530,8 @@ void renderText(unsigned int shaderProgram, const std::string& text, double x, d
     glGenBuffers(1, &vbo);
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, num_quads * 16 * sizeof(float), buffer, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glBufferData(GL_ARRAY_BUFFER, num_quads * 16 * sizeof(double), buffer, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 4 * sizeof(double), (void*)0);
     glEnableVertexAttribArray(0);
     
     glm::mat4 model = glm::mat4(1.0f);
@@ -580,7 +580,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
-    radius -= (float)yoffset * 0.5f;
+    radius -= (double)yoffset * 0.5f;
     if (radius < 2.0f) radius = 2.0f;
     if (radius > 15.0f) radius = 15.0f;
     camX = radius * cos(glm::radians(yaw)) * cos(glm::radians(pitch));
@@ -669,7 +669,7 @@ void processInput(GLFWwindow* window, std::vector<Satellite>& satellites) {
 }
 
 // ----------------------- Проверка столкновений -----------------------
-void checkCollisions(std::vector<Satellite>& satellites, std::string& destructionMessage, float& messageTimer) {
+void checkCollisions(std::vector<Satellite>& satellites, std::string& destructionMessage, double& messageTimer) {
     const double COLLISION_DIST_KM = R_EARTH_KM + SAT_RADIUS_KM;
     for (auto& sat : satellites) {
         if (sat.destroyed) continue;
@@ -780,7 +780,7 @@ int main(int argc, char* argv[]) {
     unsigned int textProgram  = compileProgram(textVertexShader, textFragmentShader);
 
     // Земля
-    std::vector<float> sphereVerts;
+    std::vector<double> sphereVerts;
     std::vector<unsigned int> sphereInds;
     generateSphere(sphereVerts, sphereInds, 1.0f, 180, 90);
     unsigned int earthVAO, earthVBO, earthEBO;
@@ -789,31 +789,31 @@ int main(int argc, char* argv[]) {
     glGenBuffers(1, &earthEBO);
     glBindVertexArray(earthVAO);
     glBindBuffer(GL_ARRAY_BUFFER, earthVBO);
-    glBufferData(GL_ARRAY_BUFFER, sphereVerts.size() * sizeof(float), sphereVerts.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sphereVerts.size() * sizeof(double), sphereVerts.data(), GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, earthEBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sphereInds.size() * sizeof(unsigned int), sphereInds.data(), GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(double), (void*)0);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(double), (void*)(3 * sizeof(double)));
     glEnableVertexAttribArray(1);
     unsigned int earthTex = loadTexture("earth_map.jpg");
 
     // Оси
-    std::vector<float> axesVerts; generateAxesLines(axesVerts);
+    std::vector<double> axesVerts; generateAxesLines(axesVerts);
     unsigned int axesVAO, axesVBO;
     glGenVertexArrays(1, &axesVAO); glGenBuffers(1, &axesVBO);
     glBindVertexArray(axesVAO); glBindBuffer(GL_ARRAY_BUFFER, axesVBO);
-    glBufferData(GL_ARRAY_BUFFER, axesVerts.size() * sizeof(float), axesVerts.data(), GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glBufferData(GL_ARRAY_BUFFER, axesVerts.size() * sizeof(double), axesVerts.data(), GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(double), (void*)0);
     glEnableVertexAttribArray(0);
 
     // Стрелки осей
-    std::vector<float> arrowVerts; generateArrows(arrowVerts);
+    std::vector<double> arrowVerts; generateArrows(arrowVerts);
     unsigned int arrowVAO, arrowVBO;
     glGenVertexArrays(1, &arrowVAO); glGenBuffers(1, &arrowVBO);
     glBindVertexArray(arrowVAO); glBindBuffer(GL_ARRAY_BUFFER, arrowVBO);
-    glBufferData(GL_ARRAY_BUFFER, arrowVerts.size() * sizeof(float), arrowVerts.data(), GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glBufferData(GL_ARRAY_BUFFER, arrowVerts.size() * sizeof(double), arrowVerts.data(), GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(double), (void*)0);
     glEnableVertexAttribArray(0);
 
     // Загрузка спутников с OpenGL
@@ -825,7 +825,7 @@ int main(int argc, char* argv[]) {
     std::string destructionMessage;
     double messageTimer = 0.0f;
 
-    glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH/SCR_HEIGHT, 0.1f, 100.0f);
+    glm::mat4 proj = glm::perspective(glm::radians(45.0f), (double)SCR_WIDTH/SCR_HEIGHT, 0.1f, 100.0f);
     yaw = -90.0f; pitch = 0.0f; radius = 6.0f;
     camX = radius * cos(glm::radians(yaw)) * cos(glm::radians(pitch));
     camY = radius * sin(glm::radians(yaw)) * cos(glm::radians(pitch));
@@ -862,7 +862,7 @@ int main(int argc, char* argv[]) {
         glUseProgram(earthProgram);
         glUniformMatrix4fv(glGetUniformLocation(earthProgram, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
         glUniformMatrix4fv(glGetUniformLocation(earthProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
-        glm::mat4 earthModel = glm::rotate(glm::mat4(1.0f), (float)(simTime * EARTH_ANGULAR_SPEED), glm::vec3(0.0f, 0.0f, 1.0f));
+        glm::mat4 earthModel = glm::rotate(glm::mat4(1.0f), (double)(simTime * EARTH_ANGULAR_SPEED), glm::vec3(0.0f, 0.0f, 1.0f));
         glUniformMatrix4fv(glGetUniformLocation(earthProgram, "model"), 1, GL_FALSE, glm::value_ptr(earthModel));
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, earthTex);
@@ -878,9 +878,9 @@ int main(int argc, char* argv[]) {
             if (sat.destroyed) continue;
             if (sat.orbitVisible) {
                 glUniform3f(glGetUniformLocation(lineProgram, "color"), sat.color.r, sat.color.g, sat.color.b);
-                glm::mat4 orbitRot = glm::rotate(glm::mat4(1.0f), (float)sat.W_rad, glm::vec3(0,0,1));
-                orbitRot = glm::rotate(orbitRot, (float)sat.i_rad, glm::vec3(1,0,0));
-                orbitRot = glm::rotate(orbitRot, (float)(-sat.w_rad), glm::vec3(0,0,1)); // минус w!
+                glm::mat4 orbitRot = glm::rotate(glm::mat4(1.0f), (double)sat.W_rad, glm::vec3(0,0,1));
+                orbitRot = glm::rotate(orbitRot, (double)sat.i_rad, glm::vec3(1,0,0));
+                orbitRot = glm::rotate(orbitRot, (double)(-sat.w_rad), glm::vec3(0,0,1)); // минус w!
                 glUniformMatrix4fv(glGetUniformLocation(lineProgram, "model"), 1, GL_FALSE, glm::value_ptr(orbitRot));
                 glBindVertexArray(sat.orbitVAO);
                 glDrawArrays(GL_LINE_LOOP, 0, sat.orbitVertexCount);
