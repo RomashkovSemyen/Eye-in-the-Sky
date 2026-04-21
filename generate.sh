@@ -5,7 +5,7 @@ echo "Генерация elems.txt"
 ./elements
 
 echo "Генерация satellite_1_orbit.csv"
-./earth 10 1
+./earth 5 1
 
 echo "Перевод координат(x,y,z) в долготу и широту"
 ./XYtoPL satellite_1_orbit.csv
