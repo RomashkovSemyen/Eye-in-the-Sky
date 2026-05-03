@@ -63,7 +63,7 @@ bool mousePressed = false;
 const double MU_KM3 = 398600.4418;
 const double R_EARTH_KM = 6400.0;
 const double SCALE = 1.0 / R_EARTH_KM;
-const double SAT_RADIUS_KM = 500.0;
+const double SAT_RADIUS_KM = 0.1;
 const double SAT_RADIUS_VIS = SAT_RADIUS_KM * SCALE;
 const double EARTH_ANGULAR_SPEED = 2.0 * M_PI / 86400.0;
 
